@@ -100,7 +100,6 @@ always @(posedge clk) begin
 	reg [CAS_LATENCY+BURST_LENGTH:0] data_ready_delay1, data_ready_delay2;
 
 	reg        saved_wr;
-	reg        saved_burst;
 	reg [12:0] cas_addr;
 	reg [31:0] saved_data;
 	reg [15:0] dq_reg;
@@ -210,7 +209,6 @@ always @(posedge clk) begin
 				chip       <= ch1_addr[26];
 				saved_data <= ch1_din;
 				saved_wr   <= ch1_wr_req;
-				saved_burst<= ~ch1_wr_req;
 				ch         <= 0;
 				command    <= CMD_ACTIVE;
 				state      <= STATE_WAIT;
@@ -220,7 +218,6 @@ always @(posedge clk) begin
 				chip       <= ch2_addr[26];
 				saved_data <= ch2_din;
 				saved_wr   <= ch2_wr_req;
-				saved_burst<= ~ch2_wr_req;
 				ch         <= 1;
 				command    <= CMD_ACTIVE;
 				state      <= STATE_WAIT;
@@ -229,7 +226,6 @@ always @(posedge clk) begin
 
 		STATE_WAIT: state <= STATE_RW1;
 		STATE_RW1: begin
-			state   <= saved_burst ? STATE_IDLE_5 : STATE_IDLE_2;
 			SDRAM_A <= cas_addr;
 			if(saved_wr) begin
 				command  <= CMD_WRITE;
@@ -237,6 +233,7 @@ always @(posedge clk) begin
 				if(!ch) begin
 					ch1_ready  <= 1;
 					ch1_wr_req <= 0;
+					state <= STATE_IDLE_2;
 				end
 				else begin
 					state <= STATE_RW2;
@@ -246,6 +243,7 @@ always @(posedge clk) begin
 				command <= CMD_READ;
 				if(!ch) data_ready_delay1[CAS_LATENCY+BURST_LENGTH] <= 1;
 				else    data_ready_delay2[CAS_LATENCY+BURST_LENGTH] <= 1;
+				state   <= STATE_IDLE_5;
 			end
 		end
 
