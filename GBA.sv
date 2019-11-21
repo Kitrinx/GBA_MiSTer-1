@@ -136,8 +136,8 @@ assign LED_DISK  = 0;
 assign LED_POWER = 0;
 assign BUTTONS   = 0;
 
-assign VIDEO_ARX = status[31:30] == 2 ? 8'd16 : (status[30] ? 8'd8 : 8'd64);
-assign VIDEO_ARY = status[31:30] == 2 ? 8'd9  : (status[30] ? 8'd7 : 8'd49);
+assign VIDEO_ARX = status[1] ? 8'd16 : 8'd3;
+assign VIDEO_ARY = status[1] ? 8'd9  : 8'd2;
 
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
@@ -172,7 +172,7 @@ parameter CONF_STR = {
     //"D0RD,Save Backup RAM;",
     //"D0ON,Autosave,Off,On;",
     //"D0-;",
-    "OUV,Aspect Ratio,4:3,8:7,16:9;",
+    "O1,Aspect Ratio,3:2,16:9;",
     //"O9B,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     //"OJK,Stereo Mix,None,25%,50%,100%;", 
     "-;",
@@ -454,7 +454,6 @@ always @(posedge clk_sys) begin
 		ce_pix <= 1;
 
 		{r,g,b} <= rgb;
-		if(!hbl) px_addr <= px_addr + 1'd1;
 
 		hbl <= &x[7:4];
 		if(x == 244) begin
@@ -469,7 +468,8 @@ always @(posedge clk_sys) begin
 		if(y == 000) vbl <= 0;
 	end
 
-	if(div == 1) begin
+	if(ce_pix) begin
+		if(!hbl) px_addr <= px_addr + 1'd1;
 		if(~&y) begin
 			x <= x + 1'd1;
 			if(&x) y <= y + 1'd1;
