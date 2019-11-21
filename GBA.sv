@@ -131,7 +131,7 @@ assign USER_OUT = '1;
 assign AUDIO_S   = 1;
 assign AUDIO_MIX = 0;
 
-assign LED_USER  = cart_download & bk_pending;
+assign LED_USER  = cart_download | bk_pending;
 assign LED_DISK  = 0;
 assign LED_POWER = 0;
 assign BUTTONS   = 0;
@@ -198,7 +198,7 @@ wire        img_mounted;
 wire        img_readonly;
 wire [63:0] img_size;
 wire        ioctl_download;
-wire [24:0] ioctl_addr;
+wire [26:0] ioctl_addr;
 wire [15:0] ioctl_dout;
 wire        ioctl_wr;
 wire  [7:0] ioctl_index;
@@ -299,7 +299,7 @@ wire code_index = &ioctl_index;
 wire code_download = ioctl_download & code_index;
 wire cart_download = ioctl_download & ~code_index; 
 
-reg [24:0] last_addr;
+reg [26:0] last_addr;
 always @(posedge clk_sys) begin
 	reg old_download;
 	
@@ -311,10 +311,10 @@ end
 
 gba_top
 #(
-	.Softmap_GBA_Gamerom_ADDR(0),
-	.Softmap_GBA_WRam_ADDR  (8388608),             //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
-	.Softmap_GBA_FLASH_ADDR (8388608+65536),       // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
-	.Softmap_GBA_EEPROM_ADDR(8388608+65536+131072) //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
+	.Softmap_GBA_WRam_ADDR  (0),            //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
+	.Softmap_GBA_FLASH_ADDR (65536),        // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
+	.Softmap_GBA_EEPROM_ADDR(65536+131072), //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
+	.Softmap_GBA_Gamerom_ADDR(65536+131072+8192)
 )
 gba
 (
@@ -323,7 +323,7 @@ gba
 	.GBA_lockspeed(~joy[10]),         // 1 = 100% speed, 0 = max speed
 	.GBA_flash_1m(0),                 // 1 when string "FLASH1M_V" is anywhere in gamepak
 	.CyclePrecalc(100),               // 100 seems to be ok to keep fullspeed for all games
-	.MaxPakAddr(last_addr[24:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
+	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 
 	.sdram_read_ena(sdram_req),       // triggered once for read request 
@@ -400,13 +400,15 @@ wire [25:2] bus_addr;
 wire [31:0] bus_dout, bus_din;
 wire        bus_rd, bus_req, bus_ack;
 
+localparam [26:0] ROM_START = (65536+131072+8192)*4;
+
 sdram sdram
 (
 	.*,
 	.init(~pll_locked),
 	.clk(clk_sys),
 
-	.ch1_addr(cart_download ? ioctl_addr[24:1] : {sdram_addr, 1'b0}),
+	.ch1_addr(cart_download ? ioctl_addr[26:1]+ROM_START[26:1] : {sdram_addr, 1'b0}),
 	.ch1_din(ioctl_dout),
 	.ch1_dout({sdram_dout2, sdram_dout1}),
 	.ch1_req(cart_download ? ioctl_wr : sdram_req),
