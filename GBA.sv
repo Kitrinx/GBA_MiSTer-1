@@ -176,10 +176,9 @@ parameter CONF_STR = {
     //"O9B,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     //"OJK,Stereo Mix,None,25%,50%,100%;", 
     "-;",
-    "O4,CPU Speed,Normal,Turbo;",
-    "-;",
     "R0,Reset;",
-    "J1,A,B,L,R,Select,Start;",
+    "J1,A,B,L,R,Select,Start,Turbo;",
+	 "jn,A,B,L,R,Select,Start,X;",
     "V,v",`BUILD_DATE
 };
 
@@ -321,7 +320,7 @@ gba
 (
 	.clk100(clk_sys),
 	.GBA_on(~reset),                  // switching from off to on = reset
-	.GBA_lockspeed(~status[4]),       // 1 = 100% speed, 0 = max speed
+	.GBA_lockspeed(~joy[10]),         // 1 = 100% speed, 0 = max speed
 	.GBA_flash_1m(0),                 // 1 when string "FLASH1M_V" is anywhere in gamepak
 	.CyclePrecalc(100),               // 100 seems to be ok to keep fullspeed for all games
 	.MaxPakAddr(last_addr[24:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
