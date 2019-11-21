@@ -105,20 +105,12 @@ always @(posedge clk) begin
 	reg [15:0] dq_reg;
 	reg  [3:0] state = STATE_STARTUP;
 
-	reg ch1_rd_req, ch1_wr_req;
-	reg ch2_rd_req, ch2_wr_req;
-	reg ch;
+	reg ch1_rq, ch2_rq, ch;
 
-	if(ch1_req) begin
-		ch1_rd_req <= ch1_rnw;
-		ch1_wr_req <= ~ch1_rnw;
-	end
+	ch1_rq <= ch1_rq | ch1_req;
+	ch2_rq <= ch2_rq | ch2_req;
+
 	ch1_ready <= 0;
-
-	if(ch2_req) begin
-		ch2_rd_req <= ch2_rnw;
-		ch2_wr_req <= ~ch2_rnw;
-	end
 	ch2_ready <= 0;
 
 	refresh_count <= refresh_count+1'b1;
@@ -132,11 +124,11 @@ always @(posedge clk) begin
 	if(data_ready_delay1[2]) ch1_dout[31:16] <= dq_reg;
 	if(data_ready_delay1[1]) ch1_dout[47:32] <= dq_reg;
 	if(data_ready_delay1[0]) ch1_dout[63:48] <= dq_reg;
-	if(data_ready_delay1[1]) {ch1_rd_req,ch1_ready} <= 1;
+	if(data_ready_delay1[1]) ch1_ready <= 1;
 
 	if(data_ready_delay2[3]) ch2_dout[15:00] <= dq_reg;
 	if(data_ready_delay2[2]) ch2_dout[31:16] <= dq_reg;
-	if(data_ready_delay2[2]) {ch2_rd_req,ch2_ready} <= 1;
+	if(data_ready_delay2[2]) ch2_ready <= 1;
 
 	SDRAM_DQ <= 16'bZ;
 
@@ -193,6 +185,7 @@ always @(posedge clk) begin
 				chip     <= 0;
 			end
 		end
+
 		STATE_RFSH: begin
 			state    <= STATE_IDLE_5;
 			command  <= CMD_AUTO_REFRESH;
@@ -204,21 +197,23 @@ always @(posedge clk) begin
 				// Priority is to issue a refresh if one is outstanding
 				state <= STATE_IDLE_1;
 			end
-			else if (ch1_rd_req | ch1_wr_req) begin
+			else if(ch1_rq) begin
 				{cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, 1'b1, ch1_addr[25:1]};
 				chip       <= ch1_addr[26];
 				saved_data <= ch1_din;
-				saved_wr   <= ch1_wr_req;
+				saved_wr   <= ~ch1_rnw;
 				ch         <= 0;
+				ch1_rq     <= 0;
 				command    <= CMD_ACTIVE;
 				state      <= STATE_WAIT;
 			end
-			else if (ch2_rd_req | ch2_wr_req) begin
-				{cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, ~ch2_wr_req, ch2_addr[25:1]};
+			else if(ch2_rq) begin
+				{cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, ch2_rnw, ch2_addr[25:1]};
 				chip       <= ch2_addr[26];
 				saved_data <= ch2_din;
-				saved_wr   <= ch2_wr_req;
+				saved_wr   <= ~ch2_rnw;
 				ch         <= 1;
+				ch2_rq     <= 0;
 				command    <= CMD_ACTIVE;
 				state      <= STATE_WAIT;
 			end
@@ -232,7 +227,6 @@ always @(posedge clk) begin
 				SDRAM_DQ <= saved_data[15:0];
 				if(!ch) begin
 					ch1_ready  <= 1;
-					ch1_wr_req <= 0;
 					state <= STATE_IDLE_2;
 				end
 				else begin
@@ -254,7 +248,6 @@ always @(posedge clk) begin
 			command     <= CMD_WRITE;
 			SDRAM_DQ    <= saved_data[31:16];
 			ch2_ready   <= 1;
-			ch2_wr_req  <= 0;
 		end
 	endcase
 

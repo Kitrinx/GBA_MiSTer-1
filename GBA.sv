@@ -302,12 +302,10 @@ wire cart_download = ioctl_download & ~code_index;
 
 reg [24:0] last_addr;
 always @(posedge clk_sys) begin
+	reg old_download;
 	
-	if (cart_download) begin
-		if(ioctl_wr) begin
-			last_addr <= ioctl_addr;
-		end
-	end	
+	old_download <= cart_download;
+	if (old_download & ~cart_download) last_addr <= ioctl_addr;
 end
 
 ////////////////////////////  SYSTEM  ///////////////////////////////////
