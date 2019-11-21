@@ -173,7 +173,7 @@ parameter CONF_STR = {
     //"D0ON,Autosave,Off,On;",
     //"D0-;",
     "O1,Aspect Ratio,3:2,16:9;",
-    //"O9B,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
+    "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     //"OJK,Stereo Mix,None,25%,50%,100%;", 
     "-;",
     "R0,Reset;",
@@ -400,7 +400,7 @@ wire [25:2] bus_addr;
 wire [31:0] bus_dout, bus_din;
 wire        bus_rd, bus_req, bus_ack;
 
-localparam [26:0] ROM_START = (65536+131072+8192)*4;
+localparam ROM_START = (65536+131072+8192)*4;
 
 sdram sdram
 (
@@ -422,6 +422,8 @@ sdram sdram
 	.ch2_rnw(bus_rd),
 	.ch2_ready(bus_ack)
 );
+
+////////////////////////////  VIDEO  ////////////////////////////////////
 
 wire [15:0] pixel_addr, px_addr;
 wire [14:0] pixel_data, rgb;
@@ -485,61 +487,13 @@ always @(posedge clk_sys) begin
 end
 
 assign CLK_VIDEO = clk_sys;
-assign CE_PIXEL = ce_pix;
-
-assign VGA_R  = {r,r[4:2]};
-assign VGA_G  = {g,g[4:2]};
-assign VGA_B  = {b,b[4:2]};
-assign VGA_DE = ~(hbl | vbl);
-assign VGA_HS = hs;
-assign VGA_VS = vs;
-assign VGA_F1 = 0;
-assign VGA_SL = 0;
-
-
-////////////////////////////  VIDEO  ////////////////////////////////////
-/*
-wire [7:0] R,G,B;
-wire FIELD,INTERLACE;
-wire HSync, HSYNC;
-wire VSync, VSYNC;
-wire HBlank_n;
-wire VBlank_n;
-wire HIGH_RES;
-wire DOTCLK;
-
-reg interlace;
-reg ce_pix;
-always @(posedge CLK_VIDEO) begin
-	reg [2:0] pcnt;
-	reg old_vsync;
-	reg tmp_hres, frame_hres;
-	reg old_dotclk;
-	
-	tmp_hres <= tmp_hres | HIGH_RES;
-
-	old_vsync <= VSync;
-	if(~old_vsync & VSync) begin
-		frame_hres <= tmp_hres | ~scandoubler;
-		tmp_hres <= HIGH_RES;
-		interlace <= INTERLACE;
-	end
-
-	pcnt <= pcnt + 1'd1;
-	old_dotclk <= DOTCLK;
-	if(~old_dotclk & DOTCLK & HBlank_n & VBlank_n) pcnt <= 1;
-
-	ce_pix <= !pcnt[1:0] & (frame_hres | ~pcnt[2]);
-	
-	if(pcnt==3) {HSync, VSync} <= {HSYNC, VSYNC};
-end
 
 assign VGA_F1 = 0;
 assign VGA_SL = sl[1:0];
 
-wire [2:0] scale = status[11:9];
+wire [2:0] scale = status[4:2];
 wire [2:0] sl = scale ? scale - 1'd1 : 3'd0;
-wire       scandoubler = ~interlace && (scale || forced_scandoubler);
+wire       scandoubler = (scale || forced_scandoubler);
 
 video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 (
@@ -552,13 +506,15 @@ video_mixer #(.LINE_LENGTH(520), .GAMMA(1)) video_mixer
 	.hq2x(scale==1),
 	.mono(0),
 
-	.HBlank(~HBlank_n),
-	.VBlank(~VBlank_n),
-	.R(R),
-	.G(G),
-	.B(B)
+	.HSync(hs),
+	.VSync(vs),
+	.HBlank(hbl),
+	.VBlank(vbl),
+	.R({r,r[4:2]}),
+	.G({g,g[4:2]}),
+	.B({b,b[4:2]})
 );
-*/
+
 
 /////////////////////////  STATE SAVE/LOAD  /////////////////////////////
 reg bk_ena = 0;
