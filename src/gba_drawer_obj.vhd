@@ -143,7 +143,6 @@ architecture arch of gba_drawer_obj is
    signal pixeladdr_pre_6   : integer range -32768 to 32767;
    signal pixeladdr_pre_7   : integer range -32768 to 32767;
        
-   signal tilemult          : integer range 32 to 64;
    signal x_flip_offset     : integer range 3 to 7;
    signal y_flip_offset     : integer range 28 to 56;
    signal x_div             : integer range 1 to 2;
@@ -376,13 +375,13 @@ begin
                   end case;
                   
                   if (OAM_data0(OAM_HICOLOR) = '0') then
-                     tilemult      <= 32;
+                     --tilemult      <= 32;
                      x_flip_offset <= 3;
                      y_flip_offset <= 28;
                      x_div         <= 2;
                      x_size        <= 4;
                   else
-                     tilemult      <= 64;
+                     --tilemult      <= 64;
                      x_flip_offset <= 7;
                      y_flip_offset <= 56;
                      x_div         <= 1;
@@ -515,7 +514,11 @@ begin
                      pixeladdr_x_aff3 <= to_unsigned(((yyy / 8) * 1024), 15);
 
                      pixeladdr_x_aff4 <= to_unsigned(((xxx mod 8) / x_div), 15);
-                     pixeladdr_x_aff5 <= to_unsigned(((xxx / 8) * tilemult), 15);
+                     if (Pixel_data0(OAM_HICOLOR) = '0') then
+                        pixeladdr_x_aff5 <= to_unsigned(((xxx / 8) * 32), 15);
+                     else
+                        pixeladdr_x_aff5 <= to_unsigned(((xxx / 8) * 64), 15);
+                     end if;
                      
                   -- synthesis translate_off
                   end if;
@@ -526,11 +529,19 @@ begin
                   
                   pixeladdr_calc := pixeladdr;
                   if (Pixel_data1(OAM_HFLIP) = '1') then
-                      pixeladdr_calc := pixeladdr_calc + (x_flip_offset - ((x mod 8) / x_div));
-                      pixeladdr_calc := pixeladdr_calc - (((x / 8) - ((sizeX / 8) - 1)) * tilemult);
+                     pixeladdr_calc := pixeladdr_calc + (x_flip_offset - ((x mod 8) / x_div));
+                     if (Pixel_data0(OAM_HICOLOR) = '0') then
+                        pixeladdr_calc := pixeladdr_calc - (((x / 8) - ((sizeX / 8) - 1)) * 32);
+                     else
+                        pixeladdr_calc := pixeladdr_calc - (((x / 8) - ((sizeX / 8) - 1)) * 64);
+                     end if;
                   else
-                      pixeladdr_calc := pixeladdr_calc + ((x mod 8) / x_div);
-                      pixeladdr_calc := pixeladdr_calc + ((x / 8) * tilemult);
+                     pixeladdr_calc := pixeladdr_calc + ((x mod 8) / x_div);
+                     if (Pixel_data0(OAM_HICOLOR) = '0') then
+                        pixeladdr_calc := pixeladdr_calc + ((x / 8) * 32);
+                     else
+                        pixeladdr_calc := pixeladdr_calc + ((x / 8) * 64);
+                     end if;
                   end if;
                   
                   pixeladdr_x_noaff <= to_unsigned(pixeladdr_calc, 15);

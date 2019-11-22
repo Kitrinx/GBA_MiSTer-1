@@ -77,7 +77,6 @@ architecture arch of gba_drawer_mode0 is
    signal tilemult         : integer range 32 to 64;
    signal x_flip_offset    : integer range 3 to 7;
    signal x_div            : integer range 1 to 2;
-   signal x_size           : integer range 4 to 8; 
    
    signal x_scrolled       : integer range 0 to 1023;
    signal tileindex        : integer range 0 to 4095;
@@ -132,12 +131,12 @@ begin
                   tilemult      <= 32;
                   x_flip_offset <= 3;
                   x_div         <= 2;
-                  x_size        <= 4;
+                  --x_size        <= 4;
                else
                   tilemult      <= 64;
                   x_flip_offset <= 7;
                   x_div         <= 1;
-                  x_size        <= 8;
+                  --x_size        <= 8;
                end if;
                
             when CALCADDR1 =>
@@ -193,9 +192,17 @@ begin
                   pixeladdr := pixeladdr_base + (x_scrolled mod 8) / x_div;
                end if;
                if (tileinfo(11) = '1') then -- vert flip
-                  pixeladdr := pixeladdr + ((7 - (y_scrolled mod 8)) * x_size);
+                  if (hicolor = '0') then
+                     pixeladdr := pixeladdr + ((7 - (y_scrolled mod 8)) * 4);
+                  else
+                     pixeladdr := pixeladdr + ((7 - (y_scrolled mod 8)) * 8);
+                  end if;
                else
-                  pixeladdr := pixeladdr + (y_scrolled mod 8 * x_size);
+                  if (hicolor = '0') then
+                     pixeladdr := pixeladdr + (y_scrolled mod 8 * 4);
+                  else
+                     pixeladdr := pixeladdr + (y_scrolled mod 8 * 8);
+                  end if;
                end if;
                VRAM_byteaddr <= to_unsigned(pixeladdr, VRAM_byteaddr'length);
                vramfetch     <= WAITREAD_COLOR;
