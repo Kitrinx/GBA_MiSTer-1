@@ -138,10 +138,10 @@ begin
                fifo_cnt <= fifo_cnt + 1;
                fifo_Wr  <= '1';
                case (fillbytes) is
-                  when 4 => fifo_Din <= FIFO_REGISTER( 7 downto 0);
-                  when 3 => fifo_Din <= FIFO_REGISTER(15 downto 8);
-                  when 2 => fifo_Din <= FIFO_REGISTER(23 downto 16);
-                  when 1 => fifo_Din <= FIFO_REGISTER(31 downto 24);
+                  when 4 => fifo_Din <= write_data( 7 downto 0);
+                  when 3 => fifo_Din <= write_data(15 downto 8);
+                  when 2 => fifo_Din <= write_data(23 downto 16);
+                  when 1 => fifo_Din <= write_data(31 downto 24);
                   when others => null;
                end case;
             end if;
