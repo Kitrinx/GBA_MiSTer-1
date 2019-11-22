@@ -176,6 +176,8 @@ parameter CONF_STR = {
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     //"OJK,Stereo Mix,None,25%,50%,100%;", 
     "-;",
+    "O5,Pause,OFF,ON;",
+    "-;",
     "R0,Reset;",
     "J1,A,B,L,R,Select,Start,Turbo;",
 	 "jn,A,B,L,R,Select,Start,X;",
@@ -271,9 +273,9 @@ end
 
 gba_top
 #(
-	.Softmap_GBA_WRam_ADDR  (0),            //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
-	.Softmap_GBA_FLASH_ADDR (65536),        // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
-	.Softmap_GBA_EEPROM_ADDR(65536+131072), //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
+	.Softmap_GBA_WRam_ADDR   (0),            //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
+	.Softmap_GBA_FLASH_ADDR  (65536),        // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
+	.Softmap_GBA_EEPROM_ADDR (65536+131072), //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
 	.Softmap_GBA_Gamerom_ADDR(65536+131072+8192)
 )
 gba
@@ -282,7 +284,7 @@ gba
 	.GBA_on(~reset),                  // switching from off to on = reset
 	.GBA_lockspeed(~joy[10]),         // 1 = 100% speed, 0 = max speed
 	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
-	.CyclePrecalc(100),               // 100 seems to be ok to keep fullspeed for all games
+	.CyclePrecalc(status[5] ? 16'd0 : 16'd100), // 100 seems to be ok to keep fullspeed for all games
 	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
 
