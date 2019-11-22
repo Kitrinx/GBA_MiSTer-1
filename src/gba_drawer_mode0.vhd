@@ -74,7 +74,6 @@ architecture arch of gba_drawer_mode0 is
    signal scroll_x_mod     : integer range 256 to 512; 
    signal scroll_y_mod     : integer range 256 to 512; 
    
-   signal tilemult         : integer range 32 to 64;
    signal x_flip_offset    : integer range 3 to 7;
    signal x_div            : integer range 1 to 2;
    
@@ -128,12 +127,12 @@ begin
                y_scrolled <= y_scrolled mod scroll_y_mod;
                offset_y   <= ((y_scrolled mod 256) / 8) * offset_y;
                if (hicolor = '0') then
-                  tilemult      <= 32;
+                  --tilemult      <= 32;
                   x_flip_offset <= 3;
                   x_div         <= 2;
                   --x_size        <= 4;
                else
-                  tilemult      <= 64;
+                  --tilemult      <= 64;
                   x_flip_offset <= 7;
                   x_div         <= 1;
                   --x_size        <= 8;

@@ -79,11 +79,9 @@ architecture arch of gba_cpu is
    
    signal thumbmode        : std_logic;
    signal halt             : std_logic;
-   signal stop             : std_logic;
          
    signal IRQ_disable      : std_logic;
    signal FIQ_disable      : std_logic;
-   signal irpnext          : std_logic;
    
    signal Flag_Zero        : std_logic;
    signal Flag_Carry       : std_logic;
@@ -97,7 +95,6 @@ architecture arch of gba_cpu is
    signal regs : t_regs;
 
    signal PC               : unsigned(31 downto 0) := (others => '0');
-   signal PC_1             : unsigned(31 downto 0) := (others => '0');
 
    signal regs_0_8  : unsigned(31 downto 0);
    signal regs_0_9  : unsigned(31 downto 0);
@@ -137,14 +134,12 @@ architecture arch of gba_cpu is
    
    -- ############# Timing ##############
    
-   signal fetch_cycles       : integer range 0 to 15 := 0;
    signal decode_cycles      : integer range 0 to 15 := 0;
    signal execute_cycles     : integer range 0 to 255 := 0;
    signal execute_addcycles  : integer range 0 to 31 := 0;
    
    signal dataticksAccess16        : integer range 0 to 31 := 0;
    signal dataticksAccess32        : integer range 0 to 31 := 0;
-   signal dataticksAccessSeq16     : integer range 0 to 31 := 0;
    signal dataticksAccessSeq32     : integer range 0 to 31 := 0;
    signal codeticksAccess16        : integer range 0 to 31 := 0;
    signal codeticksAccess32        : integer range 0 to 31 := 0;
@@ -526,6 +521,9 @@ begin
          done             <= '0';
          bus_fetch_ena    <= '0';
          
+         execute_start    <= '0';
+         new_cycles_valid <= '0';
+         
          if (dma_on = '1' and fetch_available = '1' and state_decode = DECODE_DONE and state_execute = FETCH_OP and jump = '0') then
             CPU_bus_idle <= '1';
          else
@@ -567,10 +565,8 @@ begin
             regs_5_17 <= (others => '0');
             
             PC <= (others => '0');
-            irpnext <= '0';
 
             halt <= '0';
-            stop <= '0';
             
             -- ################ internal
                
@@ -584,7 +580,21 @@ begin
                 
             state_execute      <= FETCH_OP;
             
-            lastread           <= x"DEADDEAD"; -- for testing purpose only
+            -- only required for simulation, to test if e.g. drawing works, the cpu must run without doing anything
+            if (is_simu = '1') then
+            
+               lastread           <= x"DEADDEAD"; -- for testing purpose only
+            
+               if (do_step = '1') then 
+                  if (halt_cnt < 5) then
+                     halt_cnt <= halt_cnt + 1;
+                  else
+                     halt_cnt <= 0;
+                     new_cycles_valid <= '1';
+                     new_cycles_out   <= to_unsigned(6, 8);
+                  end if;
+               end if;
+            end if;
             
          else
          
@@ -612,7 +622,6 @@ begin
                      bus_fetch_acc <= ACCESS_32BIT; 
                      PC            <= PC + 4;
                   end if;
-                  PC_1 <= PC;
                   wait_fetch <= '1';
                   fetch_ack  <= '1';
                end if;
@@ -639,8 +648,6 @@ begin
                end if;
                
             end if;
-            
-            fetch_cycles <= 1;
             
             -- ############################
             -- Decode
@@ -706,9 +713,6 @@ begin
             end if;
             
             regs(16) <= Flag_Negative & Flag_Zero & Flag_Carry & Flag_V_Overflow & x"00000" & IRQ_disable & FIQ_disable & thumbmode & '1' & unsigned(cpu_mode);
-
-            execute_start    <= '0';
-            new_cycles_valid <= '0';
             
             if (dma_new_cycles = '1') then
                new_cycles_valid <= '1';
@@ -1803,7 +1807,7 @@ begin
    
    dataticksAccess16        <=    memoryWait16(to_integer(unsigned(busaddress(27 downto 24))));
    dataticksAccess32        <=    memoryWait32(to_integer(unsigned(busaddress(27 downto 24))));
-   dataticksAccessSeq16     <= memoryWaitSeq16(to_integer(unsigned(busaddress(27 downto 24))));
+   --dataticksAccessSeq16     <= memoryWaitSeq16(to_integer(unsigned(busaddress(27 downto 24)))); -- probably not required, as dataseq32 is only for block read/write and block cmd can only do 32bit accesses 
    dataticksAccessSeq32     <= memoryWaitSeq32(to_integer(unsigned(busaddress(27 downto 24))));
                             
    codeticksAccess16        <=    memoryWait16(to_integer(unsigned(PC(27 downto 24))));

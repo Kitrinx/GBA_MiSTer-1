@@ -186,14 +186,12 @@ architecture arch of gba_drawer_obj is
    signal target_start      : integer range 0 to 239;
    signal target_eval       : integer range 0 to 239;
    signal target_wait       : integer range 0 to 239;
-   signal target_merge      : integer range 0 to 239;   
-   signal target_writeback  : integer range 0 to 239;   
+   signal target_merge      : integer range 0 to 239;    
                             
    signal enable_start      : std_logic;
    signal enable_eval       : std_logic;
    signal enable_wait       : std_logic;
    signal enable_merge      : std_logic;
-   signal enable_writeback  : std_logic;
                             
    signal second_pix_start  : std_logic;
    signal second_pix_eval   : std_logic;
@@ -341,7 +339,7 @@ begin
                   
                   pixeladdr_pre <= 32 * to_integer(unsigned(OAM_data2(OAM_TILE_HI downto OAM_TILE_LO)));
                   
-                  mosaic_v_plus1 <= to_integer(mosaic_v) + 1;
+                  --mosaic_v_plus1 <= to_integer(mosaic_v) + 1;
                   
                   case (to_integer(unsigned(OAM_data0(OAM_OBJSHAPE_HI downto OAM_OBJSHAPE_LO)))) is
                      when 0 => -- square
@@ -420,7 +418,7 @@ begin
                
                if (posx > 16#100#) then posx <= posx - 16#200#; end if;
                
-               mosaik_h_cnt <= 0;
+               --mosaik_h_cnt <= 0;
                
                -- affine
                pixeladdr_pre_a0 <= sizeX * 128;
@@ -622,7 +620,7 @@ begin
          if (mode_eval = "10") then Pixel_wait.objwnd <= '1'; else Pixel_wait.objwnd <= '0'; end if;
          
          colorbyte := x"00";
-         case (readaddr_mux(1 downto 0)) is
+         case (readaddr_mux_eval(1 downto 0)) is
             when "00" => colorbyte := VRAM_Drawer_data(7  downto 0);
             when "01" => colorbyte := VRAM_Drawer_data(15 downto 8);
             when "10" => colorbyte := VRAM_Drawer_data(23 downto 16);
@@ -666,9 +664,6 @@ begin
          enable_merge   <= enable_wait;
          
          -- fourth cycle
-         target_writeback <= target_merge;
-         enable_writeback <= enable_merge;
-         
          pixel_we     <= '0';
          pixel_objwnd <= '0';
          pixel_x      <= target_merge;
