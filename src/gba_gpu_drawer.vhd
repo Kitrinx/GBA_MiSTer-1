@@ -507,6 +507,7 @@ begin
    generic map
    (
       is_simu    => is_simu,
+      is_cyclone5=> '1',
       BYTE_WIDTH => 8,
       BYTES      => 4,
       ADDR_WIDTH => 14
@@ -538,6 +539,7 @@ begin
    generic map
    (
       is_simu    => is_simu,
+      is_cyclone5=> '1',
       BYTE_WIDTH => 8,
       BYTES      => 4,
       ADDR_WIDTH => 13
