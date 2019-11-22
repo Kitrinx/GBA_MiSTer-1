@@ -168,10 +168,10 @@ parameter CONF_STR = {
     //"C,Cheats;",
     //"H1OO,Cheats Enabled,Yes,No;",
     //"-;",
-    //"D0RC,Load Backup RAM;",
-    //"D0RD,Save Backup RAM;",
-    //"D0ON,Autosave,Off,On;",
-    //"D0-;",
+    "D0RC,Load Backup RAM;",
+    "D0RD,Save Backup RAM;",
+    "D0ON,Autosave,Off,On;",
+    "D0-;",
     "O1,Aspect Ratio,3:2,16:9;",
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     //"OJK,Stereo Mix,None,25%,50%,100%;", 
@@ -273,10 +273,11 @@ end
 
 gba_top
 #(
-	.Softmap_GBA_WRam_ADDR   (0),            //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
-	.Softmap_GBA_FLASH_ADDR  (65536),        // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
-	.Softmap_GBA_EEPROM_ADDR (65536+131072), //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
-	.Softmap_GBA_Gamerom_ADDR(65536+131072+8192)
+   // assume: cart may have either flash or eeprom, not both! (need to verify)
+	.Softmap_GBA_FLASH_ADDR  (0),           // 131072 (8bit)  -- 128 Kbyte Data for GBA Flash
+	.Softmap_GBA_EEPROM_ADDR (0),           //   8192 (8bit)  --   8 Kbyte Data for GBA EEProm
+	.Softmap_GBA_WRam_ADDR   (131072),      //  65536 (32bit) -- 256 Kbyte Data for GBA WRam Large
+	.Softmap_GBA_Gamerom_ADDR(65536+131072) //   32MB of ROM
 )
 gba
 (
@@ -362,7 +363,7 @@ wire [25:2] bus_addr;
 wire [31:0] bus_dout, bus_din;
 wire        bus_rd, bus_req, bus_ack;
 
-localparam ROM_START = (65536+131072+8192)*4;
+localparam ROM_START = (65536+131072)*4;
 
 sdram sdram
 (
@@ -382,8 +383,56 @@ sdram sdram
 	.ch2_dout(bus_dout),
 	.ch2_req(~cart_download & bus_req),
 	.ch2_rnw(bus_rd),
-	.ch2_ready(bus_ack)
+	.ch2_ready(bus_ack),
+
+	.ch3_addr({sd_lba[7:0],bram_addr}),
+	.ch3_din(bram_dout),
+	.ch3_dout(bram_din),
+	.ch3_req(bram_req),
+	.ch3_rnw(~bk_loading),
+	.ch3_ready(bram_ack)
 );
+
+wire [15:0] bram_dout, bram_din;
+wire        bram_ack;
+
+dpram #(8,16) bram
+(
+	.clock(clk_sys),
+
+	.address_a(bram_addr),
+	.wren_a(~bk_loading & bram_ack),
+	.data_a(bram_din),
+	.q_a(bram_dout),
+
+	.address_b(sd_buff_addr),
+	.wren_b(sd_buff_wr),
+	.data_b(sd_buff_dout),
+	.q_b(sd_buff_din)
+);
+
+reg [7:0] bram_addr;
+reg bram_tx_start;
+reg bram_tx_finish;
+reg bram_req;
+always @(posedge clk_sys) begin
+	reg state;
+
+	bram_req <= 0;
+
+	if(~bram_tx_start) {bram_addr, state, bram_tx_finish} <= 0;
+	else if(~bram_tx_finish) begin
+		if(!state) begin
+			bram_req <= 1;
+			state <= 1;
+		end
+		else if(bram_ack) begin
+			state <= 0;
+			if(~&bram_addr) bram_addr <= bram_addr + 1'd1;
+			else bram_tx_finish <= 1;
+		end
+	end
+end
 
 ////////////////////////////  VIDEO  ////////////////////////////////////
 
@@ -483,8 +532,7 @@ reg bk_ena = 0;
 reg bk_pending = 0;
 reg bk_loading = 0;
 
-/*
-wire bk_save_write = ~BSRAM_CE_N & ~BSRAM_WE_N;
+wire bk_save_write = !bus_addr[25:16] && bus_req && ~bus_rd;
 
 always @(posedge clk_sys) begin
 	if (bk_ena && ~OSD_STATUS && bk_save_write)
@@ -499,50 +547,73 @@ always @(posedge clk_sys) begin
 	if(~old_downloading & cart_download) bk_ena <= 0;
 	
 	//Save file always mounted in the end of downloading state.
-	if(cart_download && img_mounted && !img_readonly) bk_ena <= |ram_mask;
+	if(cart_download && img_mounted && !img_readonly) bk_ena <= 1;
 end
 
-wire bk_load    = status[12];
-wire bk_save    = status[13] | (bk_pending & OSD_STATUS && status[23]);
-reg  bk_state   = 0;
+wire bk_load  = status[12];
+wire bk_save  = status[13] | (bk_pending & OSD_STATUS && status[23]);
+reg  bk_state = 0;
 
 always @(posedge clk_sys) begin
 	reg old_load = 0, old_save = 0, old_ack;
+	reg [1:0] state;
 
 	old_load <= bk_load & bk_ena;
 	old_save <= bk_save & bk_ena;
 	old_ack  <= sd_ack;
 
 	if(~old_ack & sd_ack) {sd_rd, sd_wr} <= 0;
-	
+
 	if(!bk_state) begin
+		bram_tx_start <= 0;
+		state <= 0;
+		sd_lba <= 0;
+		bk_loading <= 0;
 		if((~old_load & bk_load) | (~old_save & bk_save)) begin
 			bk_state <= 1;
 			bk_loading <= bk_load;
-			sd_lba <= 0;
-			sd_rd <=  bk_load;
-			sd_wr <= ~bk_load;
 		end
 		if(old_downloading & ~cart_download & |img_size & bk_ena) begin
 			bk_state <= 1;
 			bk_loading <= 1;
-			sd_lba <= 0;
-			sd_rd <= 1;
-			sd_wr <= 0;
-		end
-	end else begin
-		if(old_ack & ~sd_ack) begin
-			if(sd_lba >= ram_mask[23:9]) begin
-				bk_loading <= 0;
-				bk_state <= 0;
-			end else begin
-				sd_lba <= sd_lba + 1'd1;
-				sd_rd  <=  bk_loading;
-				sd_wr  <= ~bk_loading;
-			end
 		end
 	end
+	else if(bk_loading) begin
+		case(state)
+			0: begin
+					sd_rd <= 1;
+					state <= 1;
+				end
+			1: if(old_ack & ~sd_ack) begin
+					bram_tx_start <= 1;
+					state <= 2;
+				end
+			2: if(bram_tx_finish) begin
+					bram_tx_start <= 0;
+					state <= 0;
+					sd_lba <= sd_lba + 1'd1;
+					if(&sd_lba[7:0]) bk_state <= 0;
+				end
+		endcase
+	end
+	else begin
+		case(state)
+			0: begin
+					bram_tx_start <= 1;
+					state <= 1;
+				end
+			1: if(bram_tx_finish) begin
+					bram_tx_start <= 0;
+					sd_wr <= 1;
+					state <= 2;
+				end
+			2: if(old_ack & ~sd_ack) begin
+					state <= 0;
+					sd_lba <= sd_lba + 1'd1;
+					if(&sd_lba[7:0]) bk_state <= 0;
+				end
+		endcase
+	end
 end
-*/
  
 endmodule
