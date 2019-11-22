@@ -153,6 +153,7 @@ pll pll
 	.rst(0),
 	.outclk_0(clk_sys),
 	.outclk_1(SDRAM_CLK),
+	.outclk_2(CLK_VIDEO),
 	.locked(pll_locked)
 );
 
@@ -436,30 +437,45 @@ end
 
 ////////////////////////////  VIDEO  ////////////////////////////////////
 
-wire [15:0] pixel_addr, px_addr;
-wire [14:0] pixel_data, rgb;
+wire [15:0] pixel_addr;
+wire [14:0] pixel_data;
 wire        pixel_we;
+
+reg vsync;
+always @(posedge clk_sys) begin
+	reg [3:0] sync;
+
+	sync <= sync << 1;
+	if(pixel_we && pixel_addr == 38399) sync <= 1;
+
+	vsync <= |sync;
+end
 
 dpram_n #(16,15,38400) vram
 (
-	.clock(clk_sys),
-
+	.clock_a(clk_sys),
 	.address_a(pixel_addr),
 	.data_a(pixel_data),
 	.wren_a(pixel_we),
 
+	.clock_b(CLK_VIDEO),
 	.address_b(px_addr),
 	.q_b(rgb)
 );
 
+wire [15:0] px_addr;
+wire [14:0] rgb;
+
 reg hs, vs, hbl, vbl, ce_pix;
 reg [4:0] r,g,b;
-always @(posedge clk_sys) begin
+always @(posedge CLK_VIDEO) begin
 	reg [7:0] x,y;
 	reg [1:0] div;
+	reg old_vsync;
 	reg sync;
 
-	if(pixel_we && pixel_addr == 38399) sync <= 1;
+	old_vsync <= vsync;
+	if(~old_vsync & vsync) sync <= 1;
 
 	div <= div + 1'd1;
 
@@ -496,8 +512,6 @@ always @(posedge clk_sys) begin
 		end
 	end
 end
-
-assign CLK_VIDEO = clk_sys;
 
 assign VGA_F1 = 0;
 assign VGA_SL = sl[1:0];

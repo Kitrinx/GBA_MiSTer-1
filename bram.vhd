@@ -252,8 +252,7 @@ entity dpram_n is
 	);
 	PORT
 	(
-		clock			: in  STD_LOGIC;
-		
+		clock_a		: in  STD_LOGIC;
 		address_a	: in  STD_LOGIC_VECTOR (addr_width-1 DOWNTO 0);
 		data_a		: in  STD_LOGIC_VECTOR (data_width-1 DOWNTO 0) := (others => '0');
 		enable_a		: in  STD_LOGIC := '1';
@@ -261,6 +260,7 @@ entity dpram_n is
 		q_a			: out STD_LOGIC_VECTOR (data_width-1 DOWNTO 0);
 		cs_a        : in  std_logic := '1';
 
+		clock_b		: in  STD_LOGIC;
 		address_b	: in  STD_LOGIC_VECTOR (addr_width-1 DOWNTO 0) := (others => '0');
 		data_b		: in  STD_LOGIC_VECTOR (data_width-1 DOWNTO 0) := (others => '0');
 		enable_b		: in  STD_LOGIC := '1';
@@ -312,8 +312,8 @@ BEGIN
 	PORT MAP (
 		address_a => address_a,
 		address_b => address_b,
-		clock0 => clock,
-		clock1 => clock,
+		clock0 => clock_a,
+		clock1 => clock_b,
 		clocken0 => enable_a,
 		clocken1 => enable_b,
 		data_a => data_a,
