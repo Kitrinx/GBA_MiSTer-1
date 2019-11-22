@@ -243,68 +243,28 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 );
 
 //////////////////////////  ROM DETECT  /////////////////////////////////
-/*
-reg        PAL;
-reg  [7:0] rom_type;
-reg [23:0] rom_mask, ram_mask;
-always @(posedge clk_sys) begin
-	reg [3:0] rom_size;
-	reg [3:0] ram_size;
-	reg       rom_region = 0;
-
-	if (cart_download) begin
-		if(ioctl_wr) begin
-			if (ioctl_addr == 0) begin
-				rom_size <= 4'hC;
-				ram_size <= 4'h0;
-				if(!LHRom_type && ioctl_dout[7:0]) {ram_size,rom_size} <= ioctl_dout[7:0];
-
-				case(LHRom_type)
-					1: rom_type <= 0;
-					2: rom_type <= 0;
-					3: rom_type <= 1;
-					4: rom_type <= 2;
-					default: rom_type <= ioctl_dout[15:8];
-				endcase
-			end
-
-			if (ioctl_addr == 2) begin
-				rom_region <= ioctl_dout[8];
-			end
-
-			if(LHRom_type == 2) begin
-				if(ioctl_addr == ('h7FD6+'h200)) rom_size <= ioctl_dout[11:8];
-				if(ioctl_addr == ('h7FD8+'h200)) ram_size <= ioctl_dout[3:0];
-			end
-			else if(LHRom_type == 3) begin
-				if(ioctl_addr == ('hFFD6+'h200)) rom_size <= ioctl_dout[11:8];
-				if(ioctl_addr == ('hFFD8+'h200)) ram_size <= ioctl_dout[3:0];
-			end
-			else if(LHRom_type == 4) begin
-				if(ioctl_addr == ('h40FFD6+'h200)) rom_size <= ioctl_dout[11:8];
-				if(ioctl_addr == ('h40FFD8+'h200)) ram_size <= ioctl_dout[3:0];
-			end
-
-			rom_mask <= (24'd1024 << rom_size) - 1'd1;
-			ram_mask <= ram_size ? (24'd1024 << ram_size) - 1'd1 : 24'd0;
-		end
-	end
-	else begin
-		PAL <= (!status[15:14]) ? rom_region : status[15];
-	end
-end
-*/
 
 wire code_index = &ioctl_index;
 wire code_download = ioctl_download & code_index;
 wire cart_download = ioctl_download & ~code_index; 
 
 reg [26:0] last_addr;
+reg        flash_1m;
 always @(posedge clk_sys) begin
+	reg [63:0] str;
 	reg old_download;
 	
 	old_download <= cart_download;
 	if (old_download & ~cart_download) last_addr <= ioctl_addr;
+	
+	if(~old_download & cart_download) flash_1m <= 0;
+
+	if(cart_download & ioctl_wr) begin
+		if({str, ioctl_dout[7:0]} == "FLASH1M_V") flash_1m <= 1;
+		if({str[55:0], ioctl_dout[7:0], ioctl_dout[15:8]} == "FLASH1M_V") flash_1m <= 1;
+
+		str <= {str[47:0], ioctl_dout[7:0], ioctl_dout[15:8]};
+	end
 end
 
 ////////////////////////////  SYSTEM  ///////////////////////////////////
@@ -321,7 +281,7 @@ gba
 	.clk100(clk_sys),
 	.GBA_on(~reset),                  // switching from off to on = reset
 	.GBA_lockspeed(~joy[10]),         // 1 = 100% speed, 0 = max speed
-	.GBA_flash_1m(0),                 // 1 when string "FLASH1M_V" is anywhere in gamepak
+	.GBA_flash_1m(flash_1m),          // 1 when string "FLASH1M_V" is anywhere in gamepak
 	.CyclePrecalc(100),               // 100 seems to be ok to keep fullspeed for all games
 	.MaxPakAddr(last_addr[26:2]),     // max byte address that will contain data, required for buggy games that read behind their own memory, e.g. zelda minish cap
 	.CyclesMissing(),                 // debug only for speed measurement, keep open
@@ -473,15 +433,15 @@ always @(posedge clk_sys) begin
 
 	if(ce_pix) begin
 		if(!hbl) px_addr <= px_addr + 1'd1;
-		if(~&y) begin
-			x <= x + 1'd1;
-			if(&x) y <= y + 1'd1;
-		end
-		else if(sync) begin
-			sync <= 0;
-			px_addr <= 0;
-			x <= 0;
-			y <= 0;
+		x <= x + 1'd1;
+		if(&x) begin
+			if(~&y) y <= y + 1'd1;
+			else if(sync) begin
+				sync <= 0;
+				px_addr <= 0;
+				x <= 0;
+				y <= 0;
+			end
 		end
 	end
 end
