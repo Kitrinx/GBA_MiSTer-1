@@ -35,6 +35,10 @@ entity gba_memorymux is
       
       gb_bus_out           : inout proc_bus_gb_type := ((others => 'Z'), (others => 'Z'), (others => 'Z'), 'Z', 'Z', 'Z', "ZZ", "ZZZZ", 'Z');          
                            
+      bios_wraddr          : in std_logic_vector(11 downto 0);
+      bios_wrdata          : in std_logic_vector(31 downto 0);
+      bios_wr              : in std_logic;
+
       mem_bus_Adr          : in    std_logic_vector(31 downto 0);
       mem_bus_rnw          : in    std_logic;
       mem_bus_ena          : in    std_logic;
@@ -202,7 +206,11 @@ begin
    (
       clk     => clk100,
       address => mem_bus_Adr(13 downto 2),
-      data    => bios_data
+      data    => bios_data,
+
+      wraddress => bios_wraddr,
+      wrdata    => bios_wrdata,
+      wren      => bios_wr
    );
    
    gsmallram : for i in 0 to 3 generate

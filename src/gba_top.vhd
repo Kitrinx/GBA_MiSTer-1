@@ -36,6 +36,10 @@ entity gba_top is
       bus_out_rnw        : out    std_logic;                     -- read = 1, write = 0
       bus_out_ena        : out    std_logic;                     -- one cycle high for each action
       bus_out_done       : in     std_logic;                     -- should be one cycle high when write is done or read value is valid
+      -- Write to BIOS
+      bios_wraddr        : in     std_logic_vector(11 downto 0) := (others => '0');
+      bios_wrdata        : in     std_logic_vector(31 downto 0) := (others => '0');
+      bios_wr            : in     std_logic := '0';
       -- Keys - all active high   
       KeyA               : in     std_logic; 
       KeyB               : in     std_logic;
@@ -55,9 +59,9 @@ entity gba_top is
       GBA_BusReadData    : out    std_logic_vector(31 downto 0);
       GBA_Bus_written    : in     std_logic;
       -- display data
-      pixel_out_addr     : out   integer range 0 to 38399;       -- address for framebuffer 
-      pixel_out_data     : out   std_logic_vector(14 downto 0);  -- RGB data for framebuffer 
-      pixel_out_we       : out   std_logic;                      -- new pixel for framebuffer 
+      pixel_out_addr     : out    integer range 0 to 38399;       -- address for framebuffer 
+      pixel_out_data     : out    std_logic_vector(14 downto 0);  -- RGB data for framebuffer 
+      pixel_out_we       : out    std_logic;                      -- new pixel for framebuffer 
       -- sound                            
       sound_out          : out    std_logic_vector(15 downto 0) := (others => '0')
    );
@@ -298,6 +302,10 @@ begin
       
       gb_bus_out           => gb_bus,
       
+      bios_wraddr          => bios_wraddr,
+      bios_wrdata          => bios_wrdata,
+      bios_wr              => bios_wr,
+
       mem_bus_Adr          => mem_bus_Adr, 
       mem_bus_rnw          => mem_bus_rnw, 
       mem_bus_ena          => mem_bus_ena, 

@@ -247,9 +247,9 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 
 //////////////////////////  ROM DETECT  /////////////////////////////////
 
-wire code_index = &ioctl_index;
-wire code_download = ioctl_download & code_index;
-wire cart_download = ioctl_download & ~code_index; 
+wire code_download = ioctl_download & &ioctl_index;
+wire bios_download = ioctl_download & !ioctl_index; 
+wire cart_download = ioctl_download & !bios_download & !code_download;
 
 reg [26:0] last_addr;
 reg        flash_1m;
@@ -267,6 +267,21 @@ always @(posedge clk_sys) begin
 		if({str[55:0], ioctl_dout[7:0], ioctl_dout[15:8]} == "FLASH1M_V") flash_1m <= 1;
 
 		str <= {str[47:0], ioctl_dout[7:0], ioctl_dout[15:8]};
+	end
+end
+
+reg [11:0] bios_wraddr;
+reg [31:0] bios_wrdata;
+reg        bios_wr;
+always @(posedge clk_sys) begin
+	bios_wr <= 0;
+	if(bios_download & ioctl_wr) begin
+		if(~ioctl_addr[1]) bios_wrdata[15:0] <= ioctl_dout;
+		else begin
+			bios_wrdata[31:16] <= ioctl_dout;
+			bios_wraddr <= ioctl_addr[13:2];
+			bios_wr <= 1;
+		end
 	end
 end
 
@@ -302,6 +317,10 @@ gba
 	.bus_out_rnw(bus_rd),             // read = 1, write = 0
 	.bus_out_ena(bus_req),            // one cycle high for each action
 	.bus_out_done(bus_ack),           // should be one cycle high when write is done or read value is valid
+
+	.bios_wraddr(bios_wraddr),
+	.bios_wrdata(bios_wrdata),
+	.bios_wr(bios_wr),
 
 	.KeyA(joy[4]),
 	.KeyB(joy[5]),
