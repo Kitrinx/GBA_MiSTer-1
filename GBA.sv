@@ -628,7 +628,7 @@ always @(posedge clk_sys) begin
 			bk_state <= 1;
 			bk_loading <= bk_load;
 		end
-		if(old_downloading & ~cart_download & |img_size & bk_ena) begin
+		if(old_downloading & ~cart_download & bk_ena) begin
 			bk_state <= 1;
 			bk_loading <= 1;
 		end
