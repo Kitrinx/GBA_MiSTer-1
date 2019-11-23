@@ -49,6 +49,10 @@ entity gba_memorymux is
       
       bus_lowbits          : in    std_logic_vector(1 downto 0);
                            
+      save_eeprom          : out   std_logic := '0';
+      save_sram            : out   std_logic := '0';
+      save_flash           : out   std_logic := '0';
+                           
       new_cycles           : in    unsigned(7 downto 0);
       new_cycles_valid     : in    std_logic;
       
@@ -194,6 +198,7 @@ architecture arch of gba_memorymux is
    signal flashReadState  : tFLASHSTATE := FLASH_READ_ARRAY;
    signal flashbank       : std_logic := '0';
    signal flashNotSRam    : std_logic := '0';
+   signal flashSRamdecide : std_logic := '0';
    
    signal flash_saveaddr  : std_logic_vector(busadr_bits-1 downto 0);
    signal flash_savecount : integer range 0 to 131072;
@@ -266,6 +271,7 @@ begin
             flashReadState  <= FLASH_READ_ARRAY;
             flashbank       <= '0';
             flashNotSRam    <= '0';
+            flashSRamdecide <= '0';
             sdram_addr_buf0 <= (others => '1');
             sdram_addr_buf1 <= (others => '1');
          end if;
@@ -285,6 +291,10 @@ begin
          bus_out_ena      <= '0';
          gb_bus_out.ena   <= '0';
          sdram_read_ena   <= '0';
+         
+         save_eeprom      <= '0';
+         save_sram        <= '0';
+         save_flash       <= '0';
          
          gb_on_1          <= gb_on;
          gb_bus_out.rst   <= not gb_on and gb_on_1;
@@ -937,6 +947,7 @@ begin
                            bus_out_Adr  <= std_logic_vector(to_unsigned(Softmap_GBA_EEPROM_ADDR, busadr_bits) + eepromAddress * 8 + eepromByte);
                            bus_out_rnw  <= '0';
                            bus_out_ena  <= '1';
+                           save_eeprom  <= '1';
                            state             <= WAIT_PROCBUS;
                         else
                            state        <= IDLE;
@@ -994,7 +1005,8 @@ begin
             
             when FLASHSRAMWRITEDECIDE1 =>
                state <= FLASHSRAMWRITEDECIDE2;
-               if (adr_save = x"e005555") then
+               flashSRamdecide <= '1';
+               if (flashSRamdecide = '0' and adr_save = x"e005555") then
                    flashNotSRam <= '1';
                end if;
                
@@ -1010,6 +1022,7 @@ begin
                bus_out_Adr  <= std_logic_vector(to_unsigned(Softmap_GBA_FLASH_ADDR, busadr_bits) + unsigned(adr_save(15 downto 0)));
                bus_out_rnw  <= '0';
                bus_out_ena  <= '1'; 
+               save_sram    <= '1';
                state             <= WAIT_PROCBUS;
             
             when FLASHWRITE =>
@@ -1128,6 +1141,7 @@ begin
                bus_out_Adr  <= flash_saveaddr;
                bus_out_rnw  <= '0';
                bus_out_ena  <= '1'; 
+               save_flash        <= '1';               
                state             <= FLASH_BLOCKWAIT;
                flash_saveaddr    <= std_logic_vector(unsigned(flash_saveaddr) + 1);
                flash_savecount   <= flash_savecount - 1;

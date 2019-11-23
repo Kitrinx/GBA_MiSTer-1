@@ -44,6 +44,10 @@ entity gba_top is
       cpu_addr           : out    std_logic_vector(31 downto 0);
       cpu_din            : in     std_logic_vector(31 downto 0); -- cpu_din => cpu_frombus if no MiTM used.
       cpu_frombus        : out    std_logic_vector(31 downto 0);
+      -- save memory used
+      save_eeprom        : out    std_logic;
+      save_sram          : out    std_logic;
+      save_flash         : out    std_logic;
       -- Keys - all active high   
       KeyA               : in     std_logic; 
       KeyB               : in     std_logic;
@@ -63,9 +67,9 @@ entity gba_top is
       GBA_BusReadData    : out    std_logic_vector(31 downto 0);
       GBA_Bus_written    : in     std_logic;
       -- display data
-      pixel_out_addr     : out    integer range 0 to 38399;       -- address for framebuffer 
-      pixel_out_data     : out    std_logic_vector(14 downto 0);  -- RGB data for framebuffer 
-      pixel_out_we       : out    std_logic;                      -- new pixel for framebuffer 
+      pixel_out_addr     : out   integer range 0 to 38399;       -- address for framebuffer 
+      pixel_out_data     : out   std_logic_vector(14 downto 0);  -- RGB data for framebuffer 
+      pixel_out_we       : out   std_logic;                      -- new pixel for framebuffer 
       -- sound                            
       sound_out          : out    std_logic_vector(15 downto 0) := (others => '0')
    );
@@ -320,6 +324,10 @@ begin
       mem_bus_done         => mem_bus_done,
       
       bus_lowbits          => bus_lowbits,
+      
+      save_eeprom          => save_eeprom,
+      save_sram            => save_sram,  
+      save_flash           => save_flash, 
       
       new_cycles           => new_cycles,      
       new_cycles_valid     => new_cycles_valid,
