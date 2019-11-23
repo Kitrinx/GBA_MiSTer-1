@@ -166,9 +166,9 @@ parameter CONF_STR = {
     "GBA;;",
     "FS,GBA;",
     "-;",
-    //"C,Cheats;",
-    //"H1OO,Cheats Enabled,Yes,No;",
-    //"-;",
+    "C,Cheats;",
+    "H1O6,Cheats Enabled,Yes,No;",
+    "-;",
     "D0RC,Load Backup RAM;",
     "D0RD,Save Backup RAM;",
     "D0ON,Autosave,Off,On;",
@@ -322,6 +322,10 @@ gba
 	.bios_wrdata(bios_wrdata),
 	.bios_wr(bios_wr),
 
+	.cpu_addr(cpu_addr),
+	.cpu_din(genie_ovr ? genie_data : cpu_frombus),
+	.cpu_frombus(cpu_frombus),
+
 	.KeyA(joy[4]),
 	.KeyB(joy[5]),
 	.KeySelect(joy[8]),
@@ -372,6 +376,24 @@ always_ff @(posedge clk_sys) begin
 		endcase
 	end
 end
+
+wire [31:0] cpu_addr;
+wire [31:0] cpu_frombus;
+
+wire        genie_ovr;
+wire [31:0] genie_data;
+
+CODES #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) codes (
+	.clk(clk_sys),
+	.reset(code_download && ioctl_wr && !ioctl_addr),
+	.enable(~status[6]),
+	.addr_in(cpu_addr),
+	.data_in(cpu_frombus),
+	.code(gg_code),
+	.available(gg_available),
+	.genie_ovr(genie_ovr),
+	.genie_data(genie_data)
+);
 
 ////////////////////////////  MEMORY  ///////////////////////////////////
 
