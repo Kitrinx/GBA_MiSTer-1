@@ -187,9 +187,9 @@ begin
          -- sound out
          if (ch_on = '1') then
             if (wave_on = '1') then
-               sound_out <= to_signed(128 * volume, 16);
+               sound_out <= to_signed(1 * volume, 16);
             else
-               sound_out <= to_signed(-128 * volume, 16);
+               sound_out <= to_signed(-1 * volume, 16);
             end if;
          else
             sound_out <= (others => '0');

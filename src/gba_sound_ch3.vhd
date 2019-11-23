@@ -211,7 +211,7 @@ begin
          
          -- sound out
          if (ch_on = '1') and (choutput_on = '1') then
-            sound_out <= to_signed(256 * wave_vol_shifted, 16);
+            sound_out <= to_signed(wave_vol_shifted, 16);
             sound_on  <= '1';
          else
             sound_out <= (others => '0');

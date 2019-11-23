@@ -71,7 +71,8 @@ entity gba_top is
       pixel_out_data     : out   std_logic_vector(14 downto 0);  -- RGB data for framebuffer 
       pixel_out_we       : out   std_logic;                      -- new pixel for framebuffer 
       -- sound                            
-      sound_out          : out    std_logic_vector(15 downto 0) := (others => '0')
+      sound_out_left     : out   std_logic_vector(15 downto 0) := (others => '0');
+      sound_out_right    : out   std_logic_vector(15 downto 0) := (others => '0')
    );
 end entity;
 
@@ -407,7 +408,8 @@ begin
       timer1_tick          => timer1_tick,
       sound_dma_req        => sound_dma_req,
       
-      sound_out            => sound_out,
+      sound_out_left     => sound_out_left,
+      sound_out_right    => sound_out_right,
       
       debug_fifocount      => debug_fifocount
    );
