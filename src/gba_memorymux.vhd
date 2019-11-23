@@ -143,6 +143,7 @@ architecture arch of gba_memorymux is
    signal rotate_data        : std_logic_vector(31 downto 0) := (others => '0');
       
    signal bios_data          : std_logic_vector(31 downto 0);
+   signal bios_data_last     : std_logic_vector(31 downto 0) := (others => '0');
                              
    signal smallram_addr_r    : integer range 0 to 8191 := 0;
    signal smallram_addr_w    : integer range 0 to 8191 := 0;
@@ -335,7 +336,9 @@ begin
                            when x"0" => 
                               if (PC_in_BIOS = '0') then
                                  if (unsigned(mem_bus_Adr) < 16#400#) then
-                                    rotate_data <= x"E3A02004"; -- only applies for one situation!
+                                    --rotate_data <= x"E3A02004"; -- only applies for one situation!
+                                    --rotate_data <= x"E55EC002"; -- only applies for one situation!
+                                    rotate_data <= bios_data_last;
                                     state       <= ROTATE;
                                  else
                                     state <= READ_UNREADABLE;
@@ -468,8 +471,9 @@ begin
             -- reading
                
             when READBIOS => 
-               rotate_data <= bios_data;
-               state       <= ROTATE;
+               rotate_data    <= bios_data;
+               bios_data_last <= bios_data;
+               state          <= ROTATE;
                
             when READSMALLRAM =>
                rotate_data  <= smallram_DataOut;
@@ -948,7 +952,7 @@ begin
                            bus_out_rnw  <= '0';
                            bus_out_ena  <= '1';
                            save_eeprom  <= '1';
-                           state             <= WAIT_PROCBUS;
+                           state        <= WAIT_PROCBUS;
                         else
                            state        <= IDLE;
                            mem_bus_done <= '1';
@@ -1004,7 +1008,7 @@ begin
                end if;
             
             when FLASHSRAMWRITEDECIDE1 =>
-               state <= FLASHSRAMWRITEDECIDE2;
+               state           <= FLASHSRAMWRITEDECIDE2;
                flashSRamdecide <= '1';
                if (flashSRamdecide = '0' and adr_save = x"e005555") then
                    flashNotSRam <= '1';
@@ -1023,7 +1027,7 @@ begin
                bus_out_rnw  <= '0';
                bus_out_ena  <= '1'; 
                save_sram    <= '1';
-               state             <= WAIT_PROCBUS;
+               state        <= WAIT_PROCBUS;
             
             when FLASHWRITE =>
                -- only default, maybe overwritten
@@ -1137,10 +1141,10 @@ begin
                end case;
                
             when FLASH_WRITEBLOCK =>
-               bus_out_Din  <= x"000000" & flash_savedata;
-               bus_out_Adr  <= flash_saveaddr;
-               bus_out_rnw  <= '0';
-               bus_out_ena  <= '1'; 
+               bus_out_Din       <= x"000000" & flash_savedata;
+               bus_out_Adr       <= flash_saveaddr;
+               bus_out_rnw       <= '0';
+               bus_out_ena       <= '1';
                save_flash        <= '1';               
                state             <= FLASH_BLOCKWAIT;
                flash_saveaddr    <= std_logic_vector(unsigned(flash_saveaddr) + 1);
