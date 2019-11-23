@@ -129,7 +129,7 @@ assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign USER_OUT = '1;
 
 assign AUDIO_S   = 1;
-assign AUDIO_MIX = 0;
+assign AUDIO_MIX = status[8:7];
 
 assign LED_USER  = cart_download | bk_pending;
 assign LED_DISK  = 0;
@@ -169,13 +169,13 @@ parameter CONF_STR = {
     "C,Cheats;",
     "H1O6,Cheats Enabled,Yes,No;",
     "-;",
-    "D0RC,Load Backup RAM;",
-    "D0RD,Save Backup RAM;",
+    "D0RC,Reload Backup RAM;",
+    "D2D0RD,Save Backup RAM;",
     "D0ON,Autosave,Off,On;",
     "D0-;",
     "O1,Aspect Ratio,3:2,16:9;",
     "O24,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
-    //"OJK,Stereo Mix,None,25%,50%,100%;", 
+    "O78,Stereo Mix,None,25%,50%,100%;", 
     "-;",
     "O5,Pause,OFF,ON;",
     "-;",
@@ -187,7 +187,7 @@ parameter CONF_STR = {
 
 wire  [1:0] buttons;
 wire [31:0] status;
-wire [15:0] status_menumask = {~gg_available, ~bk_ena};
+wire [15:0] status_menumask = {bk_autosave, ~gg_available, ~bk_ena};
 wire        forced_scandoubler;
 reg  [31:0] sd_lba;
 reg         sd_rd = 0;
@@ -287,6 +287,8 @@ end
 
 ////////////////////////////  SYSTEM  ///////////////////////////////////
 
+wire save_eeprom, save_sram, save_flash;
+
 gba_top
 #(
    // assume: cart may have either flash or eeprom, not both! (need to verify)
@@ -318,6 +320,10 @@ gba
 	.bus_out_ena(bus_req),            // one cycle high for each action
 	.bus_out_done(bus_ack),           // should be one cycle high when write is done or read value is valid
 
+	.save_eeprom(save_eeprom),
+	.save_sram(save_sram),
+	.save_flash(save_flash),
+
 	.bios_wraddr(bios_wraddr),
 	.bios_wrdata(bios_wrdata),
 	.bios_wr(bios_wr),
@@ -341,10 +347,9 @@ gba
 	.pixel_out_data(pixel_data),      // RGB data for framebuffer 
 	.pixel_out_we(pixel_we),          // new pixel for framebuffer 
 
-	.sound_out(AUDIO_L)
+	.sound_out_left(AUDIO_L),
+	.sound_out_right(AUDIO_R)
 );
-
-assign AUDIO_R = AUDIO_L;
 
 ////////////////////////////  CODES  ///////////////////////////////////
 
@@ -587,26 +592,40 @@ reg bk_ena = 0;
 reg bk_pending = 0;
 reg bk_loading = 0;
 
-wire bk_save_write = !bus_addr[25:16] && bus_req && ~bus_rd;
+wire bk_autosave = status[23];
+wire bk_load     = status[12];
+wire bk_save     = status[13] | (OSD_STATUS & bk_autosave);
+
+wire bk_save_write = (save_eeprom|save_sram|save_flash) && bus_req;
 
 always @(posedge clk_sys) begin
-	if (bk_ena && ~OSD_STATUS && bk_save_write)
-		bk_pending <= 1'b1;
-	else if (bk_state)
-		bk_pending <= 1'b0;
+	if (bk_save_write) bk_pending <= 1;
+	else if (bk_state) bk_pending <= 0;
 end
 
 reg old_downloading = 0;
+reg [7:0] save_sz;
 always @(posedge clk_sys) begin
+	reg old_downloading;
+	reg use_img;
+
 	old_downloading <= cart_download;
-	if(~old_downloading & cart_download) bk_ena <= 0;
+	if(~old_downloading & cart_download) {use_img, save_sz} <= 0;
+
+	if(bus_req & ~use_img) begin
+		if(save_eeprom) save_sz <= save_sz | 8'hF;
+		if(save_sram)   save_sz <= save_sz | 8'h3F;
+		if(save_flash)  save_sz <= save_sz | {flash_1m, 7'h7F};
+	end
 	
-	//Save file always mounted in the end of downloading state.
-	if(cart_download && img_mounted && !img_readonly) bk_ena <= 1;
+	if(img_mounted && img_size && !img_readonly) begin
+		use_img <= 1;
+		save_sz <= img_size[16:9] - 1'd1;
+	end
+	
+	bk_ena <= |save_sz;
 end
 
-wire bk_load  = status[12];
-wire bk_save  = status[13] | (bk_pending & OSD_STATUS && status[23]);
 reg  bk_state = 0;
 
 always @(posedge clk_sys) begin
@@ -624,11 +643,11 @@ always @(posedge clk_sys) begin
 		state <= 0;
 		sd_lba <= 0;
 		bk_loading <= 0;
-		if((~old_load & bk_load) | (~old_save & bk_save)) begin
+		if((~old_load & bk_load) | (~old_save & bk_save & bk_pending)) begin
 			bk_state <= 1;
 			bk_loading <= bk_load;
 		end
-		if(old_downloading & ~cart_download & bk_ena) begin
+		if(old_downloading & ~cart_download) begin
 			bk_state <= 1;
 			bk_loading <= 1;
 		end
@@ -647,6 +666,7 @@ always @(posedge clk_sys) begin
 					bram_tx_start <= 0;
 					state <= 0;
 					sd_lba <= sd_lba + 1'd1;
+					// always read max possible size
 					if(&sd_lba[7:0]) bk_state <= 0;
 				end
 		endcase
@@ -665,10 +685,10 @@ always @(posedge clk_sys) begin
 			2: if(old_ack & ~sd_ack) begin
 					state <= 0;
 					sd_lba <= sd_lba + 1'd1;
-					if(&sd_lba[7:0]) bk_state <= 0;
+					if(sd_lba[7:0] == save_sz) bk_state <= 0;
 				end
 		endcase
 	end
 end
- 
+
 endmodule
