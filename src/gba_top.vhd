@@ -279,6 +279,7 @@ begin
    dma_bus_din  <= mem_bus_din;
    dma_bus_done <= mem_bus_done;
    
+   cpu_addr     <= cpu_bus_Adr;
    cpu_bus_din  <= cpu_din;
    cpu_frombus  <= mem_bus_din;
    cpu_bus_done <= mem_bus_done;
