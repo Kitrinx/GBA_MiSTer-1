@@ -1,5 +1,9 @@
 # GBA_MiSTer
 
+# HW Requirements/Features
+- SDRAM module is required. 32MB SDRAM is enough to play games with less than 32MB. For 32MB games 64MB or 128MB SDRAM module is required.
+- VGA output is not implemented (yet).
+
 # Bios
 
 The core includes a opensource BIOS. However this is known to have issues.
@@ -33,7 +37,6 @@ PLEASE do not post bugs without testing with original BIOS.
 # Missing Features
 - Multiplayer features like Serial
 - GBA Module function(e.g. Boktai sun sensor)
-- savestates
 - RTC
 - probably some more
 
