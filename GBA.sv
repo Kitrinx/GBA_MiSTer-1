@@ -247,9 +247,12 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 
 //////////////////////////  ROM DETECT  /////////////////////////////////
 
-wire code_download = ioctl_download & &ioctl_index;
-wire bios_download = ioctl_download & !ioctl_index; 
-wire cart_download = ioctl_download & !bios_download & !code_download;
+reg code_download, bios_download, cart_download;
+always @(posedge clk_sys) begin
+	code_download <= ioctl_download & &ioctl_index;
+	bios_download <= ioctl_download & !ioctl_index; 
+	cart_download <= ioctl_download & ~&ioctl_index & |ioctl_index;
+end
 
 reg [26:0] last_addr;
 reg        flash_1m;
