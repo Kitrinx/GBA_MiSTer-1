@@ -166,9 +166,9 @@ parameter CONF_STR = {
     "GBA;;",
     "FS,GBA;",
     "-;",
-    "C,Cheats;",
-    "H1O6,Cheats Enabled,Yes,No;",
-    "-;",
+    //"C,Cheats;",
+    //"H1O6,Cheats Enabled,Yes,No;",
+    //"-;",
     "D0RC,Reload Backup RAM;",
     "D2D0RD,Save Backup RAM;",
     "D0ON,Autosave,Off,On;",
@@ -288,6 +288,7 @@ end
 ////////////////////////////  SYSTEM  ///////////////////////////////////
 
 wire save_eeprom, save_sram, save_flash;
+wire [31:0] cpu_addr, cpu_frombus;
 
 gba_top
 #(
@@ -353,15 +354,18 @@ gba
 
 ////////////////////////////  CODES  ///////////////////////////////////
 
-reg [128:0] gg_code;
-wire gg_available;
+wire        gg_available;
+wire        genie_ovr;
+wire [31:0] genie_data;
 
+/*
 // Code layout:
 // {clock bit, code flags,     32'b address, 32'b compare, 32'b replace}
 //  128        127:96          95:64         63:32         31:0
 // Integer values are in BIG endian byte order, so it up to the loader
 // or generator of the code to re-arrange them correctly.
 
+reg [128:0] gg_code;
 always_ff @(posedge clk_sys) begin
 	gg_code[128] <= 0;
 
@@ -382,12 +386,6 @@ always_ff @(posedge clk_sys) begin
 	end
 end
 
-wire [31:0] cpu_addr;
-wire [31:0] cpu_frombus;
-
-wire        genie_ovr;
-wire [31:0] genie_data;
-
 CODES #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) codes (
 	.clk(clk_sys),
 	.reset(code_download && ioctl_wr && !ioctl_addr),
@@ -399,6 +397,7 @@ CODES #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) codes (
 	.genie_ovr(genie_ovr),
 	.genie_data(genie_data)
 );
+*/
 
 ////////////////////////////  MEMORY  ///////////////////////////////////
 
